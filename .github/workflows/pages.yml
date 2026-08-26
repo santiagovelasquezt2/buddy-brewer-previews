@@ -1,30 +1,10 @@
 name: Deploy Pages
+# GitHub Pages is served from the gh-pages branch (legacy/branch source).
+# Do not run actions/deploy-pages here — that would switch the site to Actions and break previews.
 on:
-  push:
-    branches: [main, gh-pages]
   workflow_dispatch:
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-concurrency:
-  group: pages
-  cancel-in-progress: false
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - run: echo "Pages are published from the gh-pages branch."
