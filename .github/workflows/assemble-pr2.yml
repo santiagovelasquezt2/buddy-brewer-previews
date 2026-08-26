@@ -1,0 +1,73 @@
+name: Assemble PR2 preview
+on:
+  push:
+    branches: [gh-pages]
+    paths:
+      - "pr-2-parts/**"
+      - ".github/workflows/assemble-pr2.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+      - name: Assemble PR2 files
+        run: |
+          python3 << 'PY'
+          from pathlib import Path
+          import base64
+          import re
+
+          root = Path("pr-2-parts")
+          dest_root = Path("pr-2")
+          dest_root.mkdir(exist_ok=True)
+
+          groups = {}
+          for path in sorted(root.rglob("*.b64")):
+              name = path.name
+              if ".part" in name:
+                  key = re.sub(r"\.part\d+\.b64$", "", name)
+              else:
+                  key = name[: -4]  # strip .b64
+              groups.setdefault(key, []).append(path)
+
+          mapping = {
+              "index.html": "index.html",
+              "styles.css": "styles.css",
+              "script.js": "script.js",
+              "assets__buddy-brewer-mark.svg": "assets/buddy-brewer-mark.svg",
+              "assets__buddy-brewer-logo-stacked.svg": "assets/buddy-brewer-logo-stacked.svg",
+              "assets__buddy-brewer-logo-horizontal.svg": "assets/buddy-brewer-logo-horizontal.svg",
+              "scripts__animate-image.swift": "scripts/animate-image.swift",
+              "scripts__brand-video-assets.py": "scripts/brand-video-assets.py",
+              "scripts__overlay-video.swift": "scripts/overlay-video.swift",
+              "scripts__remux-video.swift": "scripts/remux-video.swift",
+              "scripts__trace-approved-logo.py": "scripts/trace-approved-logo.py",
+              "scripts__video-contact-sheet.swift": "scripts/video-contact-sheet.swift",
+          }
+
+          for key, files in groups.items():
+              rel = mapping.get(key)
+              if rel is None:
+                  rel = key.replace("__", "/")
+              dest = dest_root / rel
+              dest.parent.mkdir(parents=True, exist_ok=True)
+              data = b"".join(base64.b64decode(p.read_text().strip()) for p in files)
+              dest.write_bytes(data)
+              print(f"wrote {dest} ({len(data)} bytes) from {len(files)} part(s)")
+          PY
+      - name: Commit assembled preview
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pr-2
+          if git diff --cached --quiet; then
+            echo "No assembled changes"
+            exit 0
+          fi
+          git commit -m "Publish Buddy Brewer PR #2 preview under pr-2/"
+          git push
